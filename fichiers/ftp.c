@@ -16,6 +16,7 @@ void ftp(int connfd){
         switch(cmd[0]){
             case "get":
                 FILE* fd;
+                char data[MAXBUF];
                 if((fd = fopen(cmd[1],"r"))){
                     sprintf(data,"%ld");
                     send(connfd,data,strlen(data));
