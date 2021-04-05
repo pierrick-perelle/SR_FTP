@@ -18,7 +18,7 @@ void ftp(int connfd){
             char data[MAXBUF];
             if((fd = fopen(cmd[1],"r"))){
                   sprintf(data,"%ld");
-                  send(connfd,data,strlen(data));
+                  send(connfd,data,strlen(data),0);
             }else{
                   printf("file not found");
             }
