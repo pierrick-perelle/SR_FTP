@@ -9,12 +9,13 @@ int main(int argc, char **argv)
     char *host, buf[MAXLINE];
     rio_t rio;
 
-    if (argc != 3) {
+    if (argc != 2) {
         fprintf(stderr, "usage: %s <host> <port>\n", argv[0]);
         exit(0);
     }
     host = argv[1];
-    port = atoi(argv[2]);
+    //port = atoi(argv[2]);
+    port = 2121;
 
     /*
      * Note that the 'host' can be a name or an IP address.
@@ -39,6 +40,7 @@ int main(int argc, char **argv)
         } else { /* the server has prematurely closed the connection */
             break;
         }
+        break;
     }
     Close(clientfd);
     exit(0);
