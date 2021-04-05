@@ -13,7 +13,7 @@ void ftp(int connfd){
 
         char** cmd = splitCmd(buf);
 
-        if(strcmp(cmd[0],"get") == 0){
+        if((strcmp(cmd[0],"get") == 0)){
             FILE* fd;
             char data[MAXBUF];
             if((fd = fopen(cmd[1],"r"))){
@@ -22,10 +22,9 @@ void ftp(int connfd){
             }else{
                   printf("file not found");
             }
-            break;
+        }
         else{
             fprintf(stderr,"cmd non reconnu");
-            break;
         }
 
 
