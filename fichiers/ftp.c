@@ -13,20 +13,19 @@ void ftp(int connfd){
 
         char** cmd = splitCmd(buf);
 
-        switch(cmd[0]){
-            case "get":
-                FILE* fd;
-                char data[MAXBUF];
-                if((fd = fopen(cmd[1],"r"))){
-                    sprintf(data,"%ld");
-                    send(connfd,data,strlen(data));
-                }else{
-                    printf("file not found");
-                }
-                break;
-            default:
-                fprintf(stderr,"cmd non reconnu");
-                break;
+        if(strcmp(cmd[0],"get") == 0){
+            FILE* fd;
+            char data[MAXBUF];
+            if((fd = fopen(cmd[1],"r"))){
+                  sprintf(data,"%ld");
+                  send(connfd,data,strlen(data));
+            }else{
+                  printf("file not found");
+            }
+            break;
+        else{
+            fprintf(stderr,"cmd non reconnu");
+            break;
         }
 
 
