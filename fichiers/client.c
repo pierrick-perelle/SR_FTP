@@ -92,7 +92,7 @@ void client_get(int clientfd,rio_t rio,char* file){
     int n,SommeOctetDL=0,bufferSize;
     bufferSize = MAXLINE;//Nombre d'octets à lire à chaque Read
     while(bufferSize>TailleDL-SommeOctetDL)bufferSize/=2;//On divise la taille du buffer pour ne par lire trop (notemment en fin de fichier)
-    //lecture du fichier envoyé par le serveur et écriture dans celui crée/modifié chez le client. Tant que la tailleDL n'est pas atteinte (et qu'on).
+    //lecture du fichier envoyé par le serveur et écriture dans celui crée/modifié chez le client. Tant que la tailleDL n'est pas atteinte.
     while(SommeOctetDL<TailleDL && ((n=Rio_readnb(&rio, buf, bufferSize)) > 0)){
         if(n<0){
             fprintf(stderr,"Serveur déconnecté.\n");
