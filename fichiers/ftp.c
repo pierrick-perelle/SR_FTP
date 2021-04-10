@@ -41,7 +41,8 @@ void request_file(int connfd,rio_t rio,char* fileName){
     int i;
     char tmp;
     //on se place au bon endroit dans le fichier 
-    //replace by lseek.
+    //sale mais pas le choix, lseek fonctionne avec des FILE* mais Rio avec des int..
+    //fseek(fd,startByte,SEEK_SET);
     for(i=0;i<startByte;i++){
         Rio_readnb(&riof,&tmp,1);
     }
