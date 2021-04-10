@@ -41,6 +41,7 @@ void request_file(int connfd,rio_t rio,char* fileName){
     int i;
     char tmp;
     //on se place au bon endroit dans le fichier 
+    //replace by lseek.
     for(i=0;i<departEnvoie;i++){
         Rio_readnb(&riof,&tmp,1);
     }
@@ -49,7 +50,7 @@ void request_file(int connfd,rio_t rio,char* fileName){
     printf("Envoie de %d octets...\n",tailleTotale-departEnvoie);
     while((n=Rio_readnb(&riof, buf, MAXBUF)) != 0){
         if(rio_writen(connfd, buf, n)<0){
-        break;
+            break;
         }
     }
     printf("Envoie Terminé.\n");
@@ -84,7 +85,6 @@ void ftp(int connfd){
         }
         else{
             fprintf(stderr,"commande introuvable %s\n",ligne);
-            Rio_writen(connfd,"tg ça marche pas",17);
         }
         fprintf(stderr,"server received %u bytes\n", (unsigned int)n);
         Rio_writen(connfd, ligne, n);
