@@ -36,7 +36,7 @@ int main(int argc, char **argv){
         exit(0);
     }
     //port = atoi(argv[1]);
-    port = 2121;
+    port = 2198;
     
     clientlen = (socklen_t)sizeof(clientaddr);
 

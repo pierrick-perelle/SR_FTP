@@ -6,5 +6,6 @@
 int file_size(char *fn);
 time_t file_date_fd(int fd);
 int max(int a,int b);
+void printProgress(double percentage);
 
 #endif

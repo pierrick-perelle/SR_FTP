@@ -40,81 +40,85 @@ void client_get(int clientfd,rio_t rio,char* file){
         
     //Reception date de dernière modification du fichier à télécharger
     printf("Attente date fichier...\n");
-    time_t dateModificationServeur;
-    Rio_readnb(&rio, &dateModificationServeur, sizeof(time_t));
-    strftime(date, 20, "%Y-%m-%d %H:%M:%S", localtime(&dateModificationServeur));
+    time_t dateModifServeur;
+    Rio_readnb(&rio, &dateModifServeur, sizeof(time_t));
+    strftime(date, 20, "%Y-%m-%d %H:%M:%S", localtime(&dateModifServeur));
     printf("Dernière modification : %s\n",date);
 
+
     /*
-    *Ouverture ou création fichier:
-    *    Si le client possède déjà un fichier de même nom:
-    *        -si le fichier du serveur est plus récent que le fichier du client, on réécrit tout le fichier
-    *        -sinon on écrit à la suite du fichier existant
-    *    Sinon
-    *        -on crée un nouveau fichier
+    On vérifie si le client possède ou non le fichier
+        si oui et que le fichier serveur est plus récent on redl l'ensemble du fichier
+        sinon on met à jour le fichier existant en écrivant ce qu'il manque
+        si le fichier n'existe pas on le crée.
     */
-    int departTelechargement = 0; //Numéro de l'octet à partir duquel commencer à télécharger le fichier
-    struct stat infoFichierClient; 
-    if (stat(filePath, &infoFichierClient) == 0){
+   
+    int startByte = 0; //Numéro de l'octet à partir duquel commencer à télécharger le fichier
+    struct stat info; 
+    if (stat(filePath, &info) == 0){
         //Le client possède déjà le fichier
         printf("Fichier déjà présent chez le client.\n");
-        time_t dateModificationClient = infoFichierClient.st_mtime;
-        if(difftime(dateModificationServeur,dateModificationClient)>0){
+        time_t dateModifClient = info.st_mtime; //extraction date modif client grâce à stat
+        if(difftime(dateModifServeur,dateModifClient)>0){
             //Le fichier du serveur est plus récent que le fichier du client => on retélécharge complètement le fichier
             printf("Fichier plus récent trouvé, mise à jour complète...\n");
             fd = Open(filePath,O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
-            departTelechargement = 0;
+            startByte = 0;
         }
         else{
             printf("Fichier moins récent trouvé, mise à jour partielle...\n");
             fd = Open(filePath,O_CREAT | O_WRONLY | O_APPEND, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
-            departTelechargement = infoFichierClient.st_size;
+            startByte = info.st_size;
         }
     }
     else{
         //Le client ne possède pas le fichier => on le crée
         printf("Fichier absent chez le client, création...\n");
         fd = Open(filePath,O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
-        departTelechargement = 0;
+        startByte = 0;
     }
 
-    int nbOctetsATelecharger = tailleTotale-departTelechargement;
+    int TailleDL = tailleTotale-startByte;
 
     //Envoie du numéro de l'octet à partir duquel commencer à télécharger le fichier
-    Rio_writen(clientfd, &departTelechargement, sizeof(int));
+    Rio_writen(clientfd, &startByte, sizeof(int));
 
-    if(nbOctetsATelecharger>0)
-        printf("%d octets vont être téléchargés.\n",nbOctetsATelecharger);
+    if(TailleDL>0){
+        printf("%d octets vont être téléchargés.\n",TailleDL);
+    }
     
     //temps début transfert
     t1 = time(NULL);
-    int m,totalBytes=0,bufferSize;
+    int n,SommeOctetDL=0,bufferSize;
     bufferSize = MAXLINE;//Nombre d'octets à lire à chaque Read
-    while(bufferSize>nbOctetsATelecharger-totalBytes) bufferSize/=2;//On ne liera jamais + que le fichier (permet de ne pas avoir de Read bloquant)
-    //lecture du fichier envoyé par le serveur, on s'arrête quand on a lu le bon nombre d'octets ou que le serveur crash
-    while(totalBytes<nbOctetsATelecharger && ((m=Rio_readnb(&rio, buf, bufferSize)) > 0)){
-        if(m<0){
-        fprintf(stderr,"Serveur déconnecté.\n");
-        exit(1);
+    while(bufferSize>TailleDL-SommeOctetDL)bufferSize/=2;//On divise la taille du buffer pour ne par lire trop (notemment en fin de fichier)
+    //lecture du fichier envoyé par le serveur et écriture dans celui crée/modifié chez le client. Tant que la tailleDL n'est pas atteinte (et qu'on).
+    while(SommeOctetDL<TailleDL && ((n=Rio_readnb(&rio, buf, bufferSize)) > 0)){
+        if(n<0){
+            fprintf(stderr,"Serveur déconnecté.\n");
+            exit(1);
         }
-        Rio_writen(fd, buf, m);//écriture dans le fichier du client
-        totalBytes+=m;//Nombre d'octets lu courrant
-        //printf("(%d/%d)\n",totalBytes,nbOctetsATelecharger);
-        while(bufferSize>nbOctetsATelecharger-totalBytes) bufferSize/=2;//On ne liera jamais + que le fichier (permet de ne pas avoir de Read bloquant)
+        Rio_writen(fd, buf, n);//écriture dans le fichier du client
+        SommeOctetDL+=n;//Incrémentation du nombre d'octet déjà transféré.
+        printProgress((SommeOctetDL*100)/TailleDL);
+        while(bufferSize>TailleDL-SommeOctetDL) bufferSize/=2;
+        usleep(50000);
     }
 
     //temps fin transfert
     t2 = time(NULL);
-    if(nbOctetsATelecharger!=totalBytes){
-        printf("Transfer incomplete.\n");
+    if(TailleDL!=SommeOctetDL){
+        printf("\nTransfer incomplete.\n");
     }
     else{
-        if(tailleTotale-departTelechargement==0)
-        printf("Rien à télécharger.\n");
-        else
-        printf("Transfer successfully complete.\n");
+        if(tailleTotale-startByte==0){
+            printf("\nRien à télécharger.\n");
+        }
+        else{
+            printf("\nTransfer successfully complete.\n");
+        }
     }
-    printf("%d bytes received in %ld seconds (%d Kbytes/s)\n",totalBytes,t2-t1,totalBytes/max(1,t2-t1));
+    printf("%d bytes received in %ld seconds (%d Kbytes/s)\n",SommeOctetDL,t2-t1,SommeOctetDL/max(1,t2-t1));
     Close(fd);
 }
 
@@ -132,7 +136,7 @@ int main(int argc, char **argv)
     }
     host = argv[1];
     //port = atoi(argv[2]);
-    port = 2121;
+    port = 2198;
 
     /*
      * Note that the 'host' can be a name or an IP address.
@@ -152,19 +156,24 @@ int main(int argc, char **argv)
     printf("> ");
 
     while (Fgets(buf, MAXLINE, stdin) != NULL) {
-        Rio_writen(clientfd, buf, strlen(buf));
-        //extraction de la comande.
-        request = strtok(buf," \n"); //here's the command.
-        printf("command : %s \n",request);
-        if(strcmp(request,"get") == 0){
-            request = strtok(NULL," \n");//here the file if the cmd was get.
-            printf("file : %s \n",request);
-            client_get(clientfd,rio,request);
-        }
-        else{
-            printf("commande : %s unknown\n",request);
-        }
 
+        if(strcmp(buf,"\n")!=0){
+            Rio_writen(clientfd, buf, strlen(buf));
+             //extraction de la comande.
+            request = strtok(buf," \n"); //here's the command.
+
+            if(strcmp(request,"get") == 0){
+            request = strtok(NULL," \n");//here the file if the cmd was get.
+            client_get(clientfd,rio,request);
+            }
+            else if(strcmp(buf,"bye")==0){
+                exit(0);
+            }
+            else{
+                printf("%s : command unknown\n",request);
+            }
+        }
+        printf("> ");
     }
     Close(clientfd);
     exit(0);

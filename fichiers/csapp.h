@@ -57,6 +57,8 @@ extern char **environ; /* defined by libc */
 #define	MAXLINE	 8192  /* max text line length */
 #define MAXBUF   8192  /* max I/O buffer size */
 #define LISTENQ  1024  /* second argument to listen() */
+#define PBSTR "|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||" /*Progress bar*/
+#define PBWIDTH 100 /*Width of progress bar*/
 
 /* Our own error-handling functions */
 void unix_error(char *msg);

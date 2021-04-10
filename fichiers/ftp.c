@@ -10,11 +10,11 @@ void request_file(int connfd,rio_t rio,char* fileName){
     char buf[MAXBUF];
     rio_t riof;
 
-    printf("nom du fichier recherché : %s \n",fileName);
+    printf("chemin du fichier recherché : %s \n",fileName);
 
     fd=open(fileName,O_RDONLY,0);
         
-    //Si impossible d'ouvrir fichier(n'existe pas), envoie erreur
+    //Impossible d'ouvrir le fichier -> on envoi autre chose que "ok" qui sera interprété par le client comme une erreur.
     if(fd<0){
         Rio_writen(connfd, "NOT_FOUND\n", 10);
         printf("Erreur: %s n'existe pas\n", fileName);
@@ -34,20 +34,20 @@ void request_file(int connfd,rio_t rio,char* fileName){
     Rio_writen(connfd, &dateModification, sizeof(time_t));
     
     //reception du numéro de l'octet à partir duquel envoyer le fichier au client (le client ne retéléchargera pas la partie du fichier qu'il possède déjà)
-    int departEnvoie = 0;
-    Rio_readnb(&rio, &departEnvoie, sizeof(int));
+    int startByte = 0;
+    Rio_readnb(&rio, &startByte, sizeof(int));
     
     Rio_readinitb(&riof, fd);
     int i;
     char tmp;
     //on se place au bon endroit dans le fichier 
     //replace by lseek.
-    for(i=0;i<departEnvoie;i++){
+    for(i=0;i<startByte;i++){
         Rio_readnb(&riof,&tmp,1);
     }
 
     //Envoie du fichier
-    printf("Envoie de %d octets...\n",tailleTotale-departEnvoie);
+    printf("Envoie de %d octets...\n",tailleTotale-startByte);
     while((n=Rio_readnb(&riof, buf, MAXBUF)) != 0){
         if(rio_writen(connfd, buf, n)<0){
             break;
@@ -62,32 +62,51 @@ void ftp(int connfd){
     size_t n;
     char buf[MAXLINE];
     char* ligne;
+    char path[MAXBUF];
     rio_t rio;
-    char SERV_DIR[100] =  {'\0'};
+    char SERV_DIR[100];
+
+
+    //cleaning up buffer before use.
+    memset(SERV_DIR, 0, sizeof SERV_DIR);
+    memset(path, 0, sizeof path);
+
     strcat(SERV_DIR,"./Serveur/");
 
+    //initialisation
     Rio_readinitb(&rio, connfd);
 
     while ((n = Rio_readlineb(&rio, buf, MAXLINE)) != 0) {
 
-        printf("received : %s \n",buf);
-        ligne = strtok(buf," \n"); //buf[0]
+        //nettoyage du path pour gerer plusieurs commandes par client.
+        memset(path, 0, sizeof path);
+
+        printf("received : %s",buf);
+        //isolement de la commande
+        ligne = strtok(buf," \n");
+
+        //détéction de la commande
+
         if(strcmp(ligne,"get")==0){
             printf("get detected\n");
             ligne=strtok(NULL," \n"); //buf[1]
             if(buf!=NULL){
                 printf("starting request process... \n");
-                request_file(connfd,rio,strcat(SERV_DIR,ligne));
+                strcat(strcat(path,SERV_DIR),ligne);
+                request_file(connfd,rio,path);
             }
             else{
                 fprintf(stderr,"Utilisation: get <nom_de_fichier>\n");
             }
         }
+        else if(strcmp(buf,"bye")==0){
+            printf("bye detected\n");
+            return;
+        }
         else{
             fprintf(stderr,"commande introuvable %s\n",ligne);
         }
-        fprintf(stderr,"server received %u bytes\n", (unsigned int)n);
-        Rio_writen(connfd, ligne, n);
+        printf("Requête traité.\n");
     }
 }
 
